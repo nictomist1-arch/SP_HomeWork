@@ -1,15 +1,51 @@
-using System;
-using System.Windows.Forms;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading;
 
 namespace Task1_Primes
 {
-    internal static class Program
+    public class Program
     {
-        [STAThread]
-        static void Main()
+        public static Thread StartThread(IEnumerable<long> numbers, IProgress<long> progress,
+            CancellationToken stop = default, ManualResetEvent pause = null)
         {
-            ApplicationConfiguration.Initialize();
-            Application.Run(new MainForm());
+            Thread thread = new Thread(() =>
+            {
+                foreach (long number in numbers)
+                {
+                    if (pause != null)
+                        pause.WaitOne();
+                    if (stop.IsCancellationRequested)
+                        return;
+                    progress.Report(number);
+                    if (stop.WaitHandle.WaitOne(100))
+                        return;
+                }
+            });
+            thread.IsBackground = true;
+            thread.Start();
+            return thread;
+        }
+
+        public static Thread Start(IProgress<long> progress, long lower = 2, long upper = long.MaxValue)
+        {
+            return StartThread(Primes(lower, upper), progress);
+        }
+
+        static IEnumerable<long> Primes(long lower, long upper)
+        {
+            for (long n = Math.Max(lower, 2); n <= upper; n++)
+            {
+                if (IsPrime(n)) yield return n;
+                if (n == long.MaxValue) yield break;
+            }
+        }
+
+        static bool IsPrime(long n)
+        {
+            for (long d = 2; d <= n / d; d++)
+                if (n % d == 0) return false;
+            return true;
         }
     }
 }

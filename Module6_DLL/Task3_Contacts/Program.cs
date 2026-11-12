@@ -1,27 +1,39 @@
-﻿using System.Text.RegularExpressions;
+﻿using System;
+using Library = Task3_Contacts.Program;
 
-namespace Task3_Contacts
+namespace Task3_Contacts_App
 {
     public static class Program
     {
+        public static string Check()
+        {
+            if (!IsFullName("Иван Петров") || IsFullName("Иван1") ||
+                !IsAge("25") || IsAge("-1") ||
+                !IsPhone("+79991234567") || IsPhone("123") ||
+                !IsEmail("test@example.com") || IsEmail("test@@example.com"))
+                throw new Exception("Ошибка проверки контактов.");
+
+            return "Проверены ФИО, возраст, телефон и email.";
+        }
+
         public static bool IsFullName(string name)
         {
-            return Regex.IsMatch(name, @"\A\p{L}+(?: +\p{L}+)*\z");
+            return Library.IsFullName(name);
         }
 
         public static bool IsAge(string age)
         {
-            return Regex.IsMatch(age, @"\A[0-9]+\z");
+            return Library.IsAge(age);
         }
 
         public static bool IsPhone(string phone)
         {
-            return Regex.IsMatch(phone, @"\A\+7[0-9]{10}\z");
+            return Library.IsPhone(phone);
         }
 
         public static bool IsEmail(string email)
         {
-            return Regex.IsMatch(email, @"\A[A-Za-z0-9_%+-]+(?:\.[A-Za-z0-9_%+-]+)*@[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*(?:\.[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)*\.[A-Za-z]{2,}\z");
+            return Library.IsEmail(email);
         }
     }
 }

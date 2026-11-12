@@ -1,112 +1,100 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using System.Text.RegularExpressions;
+﻿using System.IO;
+using System;
+using Library = Task4_5_FileSystem.Program;
 
-namespace Task4_5_FileSystem
+namespace Task4_5_FileSystem_App
 {
     public static class Program
     {
+        public static string Check()
+        {
+            string directory = Path.Combine(Path.GetTempPath(),
+                "DLL_Check_" + Guid.NewGuid());
+            Directory.CreateDirectory(directory);
+
+            string source = Path.Combine(directory, "source.txt");
+            string copy = Path.Combine(directory, "copy.txt");
+            string moved = Path.Combine(directory, "moved.txt");
+            File.WriteAllText(source, "кот КОТ котик");
+            CopyFile(source, copy);
+            MoveFile(copy, moved);
+            if (File.Exists(copy) ||
+                File.ReadAllText(moved) != File.ReadAllText(source))
+                throw new Exception("Ошибка копирования или переноса.");
+
+            string folder = Path.Combine(directory, "folder");
+            Directory.CreateDirectory(Path.Combine(folder, "child"));
+            File.WriteAllText(Path.Combine(folder, "child", "input.txt"), "кот");
+            string folderCopy = Path.Combine(directory, "folderCopy");
+            CopyDirectory(folder, folderCopy);
+            string nestedFile = Path.Combine(folderCopy, "child", "input.txt");
+            if (!File.Exists(nestedFile))
+                throw new Exception("Ошибка копирования папки.");
+
+            string report = Path.Combine(directory, "report.txt");
+            SearchInFile(source, "кот", report);
+            if (!File.ReadAllText(report).Contains("Количество вхождений: 2"))
+                throw new Exception("Ошибка поиска в файле.");
+
+            string folderReport = Path.Combine(directory, "folder-report.txt");
+            SearchInDirectory(folder, "кот", folderReport);
+            if (!File.ReadAllText(folderReport).Contains("Количество вхождений: 1"))
+                throw new Exception("Ошибка поиска в папке.");
+
+            DeleteFile(moved);
+            if (File.Exists(moved))
+                throw new Exception("Ошибка удаления файла.");
+            File.WriteAllText(copy, "copy");
+            File.WriteAllText(moved, "moved");
+            DeleteFiles(new[] { copy, moved });
+            if (File.Exists(copy) || File.Exists(moved))
+                throw new Exception("Ошибка удаления файлов.");
+            DeleteByMask(Path.Combine(folderCopy, "child"), "*.txt");
+            if (File.Exists(nestedFile))
+                throw new Exception("Ошибка удаления по маске.");
+
+            return "Все файловые операции проверены." + Environment.NewLine +
+                "Тестовые файлы и отчёты: " + directory;
+        }
+
         public static void CopyFile(string source, string destination)
         {
-            File.Copy(source, destination);
+            Library.CopyFile(source, destination);
         }
 
         public static void CopyDirectory(string source, string destination)
         {
-            string sourcePath = Path.GetFullPath(source).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-            string destinationPath = Path.GetFullPath(destination).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-            if (destinationPath.StartsWith(sourcePath, StringComparison.OrdinalIgnoreCase))
-                throw new ArgumentException("Копию нужно сохранить за пределами исходной папки.");
-
-            Directory.CreateDirectory(destination);
-            foreach (string file in Directory.GetFiles(source))
-                File.Copy(file, Path.Combine(destination, Path.GetFileName(file)));
-            foreach (string folder in Directory.GetDirectories(source))
-            {
-                if ((File.GetAttributes(folder) & FileAttributes.ReparsePoint) != 0)
-                    continue;
-                CopyDirectory(folder, Path.Combine(destination, Path.GetFileName(folder)));
-            }
+            Library.CopyDirectory(source, destination);
         }
 
         public static void DeleteFile(string path)
         {
-            File.Delete(path);
+            Library.DeleteFile(path);
         }
 
         public static void DeleteFiles(string[] paths)
         {
-            foreach (string path in paths)
-                File.Delete(path);
+            Library.DeleteFiles(paths);
         }
 
         public static void DeleteByMask(string directory, string mask)
         {
-            foreach (string path in Directory.GetFiles(directory, mask))
-                File.Delete(path);
+            Library.DeleteByMask(directory, mask);
         }
 
         public static void MoveFile(string source, string destination)
         {
-            File.Move(source, destination);
+            Library.MoveFile(source, destination);
         }
 
         public static void SearchInFile(string path, string word, string reportPath)
         {
-            if (string.IsNullOrEmpty(word))
-                throw new ArgumentException("Введите слово.", nameof(word));
-            if (string.Equals(Path.GetFullPath(path), Path.GetFullPath(reportPath), StringComparison.OrdinalIgnoreCase))
-                throw new ArgumentException("Отчёт нужно сохранить в другой файл.");
-
-            int count = CountWord(File.ReadAllText(path), word);
-            string report = "Файл: " + path + Environment.NewLine +
-                "Слово: " + word + Environment.NewLine +
-                "Количество вхождений: " + count;
-            File.WriteAllText(reportPath, report);
+            Library.SearchInFile(path, word, reportPath);
         }
 
         public static void SearchInDirectory(string directory, string word, string reportPath)
         {
-            if (string.IsNullOrEmpty(word))
-                throw new ArgumentException("Введите слово.", nameof(word));
-
-            string fullReportPath = Path.GetFullPath(reportPath);
-            StringBuilder report = new StringBuilder();
-            foreach (string path in GetFiles(directory))
-            {
-                if (string.Equals(Path.GetFullPath(path), fullReportPath, StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                int count = CountWord(File.ReadAllText(path), word);
-                report.AppendLine("Файл: " + path);
-                report.AppendLine("Слово: " + word);
-                report.AppendLine("Количество вхождений: " + count);
-                report.AppendLine();
-            }
-            File.WriteAllText(reportPath, report.ToString());
-        }
-
-        static IEnumerable<string> GetFiles(string directory)
-        {
-            foreach (string file in Directory.EnumerateFiles(directory))
-                if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) == 0)
-                    yield return file;
-
-            foreach (string folder in Directory.EnumerateDirectories(directory))
-            {
-                if ((File.GetAttributes(folder) & FileAttributes.ReparsePoint) != 0)
-                    continue;
-                foreach (string file in GetFiles(folder))
-                    yield return file;
-            }
-        }
-
-        static int CountWord(string text, string word)
-        {
-            return Regex.Matches(text, @"(?<!\w)" + Regex.Escape(word) + @"(?!\w)",
-                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant).Count;
+            Library.SearchInDirectory(directory, word, reportPath);
         }
     }
 }

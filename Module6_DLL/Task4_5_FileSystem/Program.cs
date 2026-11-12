@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -73,12 +74,7 @@ namespace Task4_5_FileSystem
 
             string fullReportPath = Path.GetFullPath(reportPath);
             StringBuilder report = new StringBuilder();
-            EnumerationOptions options = new EnumerationOptions
-            {
-                RecurseSubdirectories = true,
-                AttributesToSkip = FileAttributes.ReparsePoint
-            };
-            foreach (string path in Directory.EnumerateFiles(directory, "*", options))
+            foreach (string path in GetFiles(directory))
             {
                 if (string.Equals(Path.GetFullPath(path), fullReportPath, StringComparison.OrdinalIgnoreCase))
                     continue;
@@ -90,6 +86,21 @@ namespace Task4_5_FileSystem
                 report.AppendLine();
             }
             File.WriteAllText(reportPath, report.ToString());
+        }
+
+        static IEnumerable<string> GetFiles(string directory)
+        {
+            foreach (string file in Directory.EnumerateFiles(directory))
+                if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) == 0)
+                    yield return file;
+
+            foreach (string folder in Directory.EnumerateDirectories(directory))
+            {
+                if ((File.GetAttributes(folder) & FileAttributes.ReparsePoint) != 0)
+                    continue;
+                foreach (string file in GetFiles(folder))
+                    yield return file;
+            }
         }
 
         static int CountWord(string text, string word)
